@@ -78,12 +78,60 @@ void setup() {
   LCD.println("Online");
   delay(500);
 
+  if(scale.is_ready())
+  {
+    Serial.println("Calibrating... Remove all weights...");
+    LCD.clear();
+    LCD.setCursor(0, 0);
+    LCD.println("Calibrating...");
+    LCD.setCursor(0, 1);
+    LCD.println("Remove all weights...");
+    delay(5000);
+
+
+    scale.tare();
+    LCD.clear();
+    LCD.setCursor(0, 0);
+    LCD.println("Tare done.");
+    LCD.setCursor(0, 1);
+    LCD.println("Add known weight.");
+    Serial.println("Tare done. Place a known weight.");
+    delay(5000);
+
+    long reading = scale.get_units(10);  // Obtener lectura promediada
+    Serial.print("Raw reading: ");
+    Serial.println(reading);
+
+    long known_weight = 50.0;
+    calibration_factor = reading / known_weight;
+    scale.set_scale(calibration_factor);
+
+    Serial.print("Calibration factor set to: ");
+    Serial.println(calibration_factor);
+
+  } else{
+    Serial.println("Error: HX711 not found.");
+    LCD.clear();
+    LCD.setCursor(0, 0);
+    LCD.print("Error HX711");
+  }
 
   // Time configuration
   configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, "pool.ntp.org");  // Ajuste con servidor NTP
 
 }
 void loop() {
+  //Obtenemos el arreglo de datos (humedad y temperatura)
+  TempAndHumidity data = dht.getTempAndHumidity();
+  //Mostramos los datos de la temperatura y humedad
+  Serial.println("Temperatura: " + String(data.temperature, 2) + "°C");
+
+  // Mostrar temperatura en LCD
+  LCD.clear();
+  LCD.setCursor(0, 0);
+  LCD.print("Temp: ");
+  LCD.print(String(data.temperature, 2));
+  LCD.print(" C");
 
   delay(500);
 }
