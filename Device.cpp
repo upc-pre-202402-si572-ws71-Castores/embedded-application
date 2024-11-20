@@ -1,89 +1,74 @@
-// Device.cpp
-
 #include "Device.h"
 #include "time.h"
 
-// Ajuste de la zona horaria
 #define GMT_OFFSET_SEC -18000  // Offset de UTC -5 horas (Perú)
 #define DAYLIGHT_OFFSET_SEC 0   // Sin horario de verano
 
-
-Device::Device(int dhtPin, int cellPin, int sckPin, float calibration, const String& id, const String& ssid, const String& password, const String& tempUrl, const String& weightUrl, uint8_t lcdAddr) :
-    pinDHT(dhtPin), ld_cell(cellPin), ld_sck(sckPin), calibration_factor(calibration),
-    deviceID(id), wifiSSID(ssid), wifiPassword(password), tempEndpoint(tempUrl), weightEndpoint(weightUrl),
-    lcd(lcdAddr, 16, 2)
-{
-}
+Device::Device(const String& id, const String& ssid, const String& password, const String& endpoint,
+               uint8_t lcdAddr, int dhtPin, int hx711DT, int hx711SCK, float hx711Calibration)
+    : deviceID(id), wifiSSID(ssid), wifiPassword(password), apiEndpoint(endpoint),
+      lcd(lcdAddr, 16, 2), dht22(dhtPin), hx711(hx711DT, hx711SCK, hx711Calibration) {}
 
 void Device::init() {
     Serial.begin(115200);
-    
-    // LCD startup
+
+    // Initialize LCD
     lcd.init();
     lcd.backlight();
     lcd.setCursor(0, 0);
     lcd.print("Connecting to ");
     lcd.setCursor(0, 1);
-    lcd.print("WiFi ");
+    lcd.print("WiFi");
 
-    // Initialize DHT sensor
-    dht.setup(pinDHT, DHTesp::DHT22);
-
-    // Initialize scale
-    scale.begin(ld_cell, ld_sck);
-    if (scale.is_ready()) {
-        Serial.println("Calibrating... Remove all weights...");
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.println("Calibrating...");
-        delay(5000);
-        scale.tare();
-        scale.set_scale(calibration_factor);
-        lcd.clear();
-        lcd.println("Calibration done.");
-    } else {
-        lcd.clear();
-        lcd.print("Error HX711");
-    }
-
-    // WiFi setup
-    WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str());
-
-    Serial.println("Connected to WiFi");
-    while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    delay(500);
-    }
-    lcd.clear();
-    lcd.println("WiFi connected");
-    
+    // Connect to WiFi
+    connectWiFi();
     // Configure time
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, "pool.ntp.org");
+
+    dht22.init();
+    hx711.init();
 }
 
-String Device::getTime() {
-    time_t now;
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
-        Serial.println("Failed to obtain time");
-        return "N/A";
+void Device::connectWiFi() {
+    Serial.println("Connecting to WiFi...");
+    WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str());
+
+
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED) {
+        Serial.print(".");
+        delay(500);
+        attempts++;
+
     }
-    char buffer[80];
-    strftime(buffer, 80, "%d/%m/%Y %H:%M", &timeinfo);
-    return String(buffer);
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("\nWiFi connected");
+        lcd.clear();
+        lcd.print("WiFi connected");
+    } else {
+        Serial.println("\nWiFi connection failed");
+        lcd.clear();
+        lcd.print("WiFi Error");
+    }
+
+    lcd.clear();
+    lcd.print("WiFi connected");
+    Serial.println("Connected to WiFi");
 }
 
-void Device::readTemperature() {
-    TempAndHumidity data = dht.getTempAndHumidity();
-    displayTemperature(data.temperature);
-    apiClient.sendTemperatureToAPI(tempEndpoint, deviceID, data.temperature, getTime());
-}
+void Device::readSensors() {
+    // Leer sensores
+    float temperature = dht22.readTemperature();
+    float weight = hx711.readWeight();
 
-void Device::readWeight() {
-    if (scale.is_ready()) {
-        long weight = scale.get_units(10);
+    if (weight != -1) {
+        // Enviar datos al API
+        int requestId = 1; // Cambiar según sea necesario
+        apiClient.sendDataToAPI(apiEndpoint, requestId, temperature, weight);
+
+        // Mostrar en LCD
+        displayTemperature(temperature);
         displayWeight(weight);
-        apiClient.sendWeightToAPI(weightEndpoint, deviceID, weight, getTime());
     } else {
         lcd.setCursor(0, 1);
         lcd.print("Weight Error");
@@ -103,4 +88,16 @@ void Device::displayWeight(float weight) {
     lcd.print("Weight: ");
     lcd.print(weight);
     lcd.print(" Kg");
+}
+
+String Device::getTime() {
+    time_t now;
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        Serial.println("Failed to obtain time");
+        return "N/A";
+    }
+    char buffer[80];
+    strftime(buffer, 80, "%d/%m/%Y %H:%M", &timeinfo);
+    return String(buffer);
 }

@@ -14,6 +14,8 @@ public:
     ApiClient();
     void sendTemperatureToAPI(const String& endpoint, const String& deviceID, float temperature, const String& currentTime);
     void sendWeightToAPI(const String& endpoint, const String& deviceID, float weight, const String& currentTime);
+    void sendDataToAPI(const String& endpoint, int requestId, float temperature, float weight);
+
 };
 
 #endif

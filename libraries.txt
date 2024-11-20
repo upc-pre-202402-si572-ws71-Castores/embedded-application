@@ -1,12 +1,12 @@
 # Wokwi Library List
 # See https://docs.wokwi.com/guides/libraries
+
 DHT sensor library for ESPx
-Time
-ArduinoJson
 LiquidCrystal I2C
+HX711
+HX711 Arduino Library
 WiFi
 WiFiWire
 HttpClient
-HX711
-HX711 Arduino Library
-TinyGPSPlus
+Time
+ArduinoJson
