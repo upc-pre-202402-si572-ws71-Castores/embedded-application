@@ -1,39 +1,38 @@
-// Device.h
-
 #ifndef DEVICE_H
 #define DEVICE_H
 
-#include "DHTesp.h"
-#include <HX711.h>
 #include <WiFi.h>
 #include <LiquidCrystal_I2C.h>
 #include "ApiClient.h"
+#include "HX711Sensor.h"
+#include "DHT22Sensor.h"
 
 class Device {
 private:
-    DHTesp dht;
-    HX711 scale;
     LiquidCrystal_I2C lcd;
     ApiClient apiClient;
 
-    int pinDHT;
-    int ld_cell;
-    int ld_sck;
-    float calibration_factor;
     String deviceID;
-    
     String wifiSSID;
     String wifiPassword;
     String tempEndpoint;
     String weightEndpoint;
+    String apiEndpoint; // Nuevo endpoint para PUT
+
+
+    HX711Sensor hx711;
+    DHT22Sensor dht22;
 
 public:
-    Device(int dhtPin, int cellPin, int sckPin, float calibration, const String& id, const String& ssid, const String& password, const String& tempUrl, const String& weightUrl, uint8_t lcdAddr);
+    Device(const String& id, const String& ssid, const String& password, const String& endpoint,
+           uint8_t lcdAddr, int dhtPin, int hx711DT, int hx711SCK, float hx711Calibration);
 
     void init();
-    String getTime();
-    void readTemperature();
-    void readWeight();
+    void readSensors();
+    String getTime(); // Declaración aquí
+
+private:
+    void connectWiFi();
     void displayTemperature(float temperature);
     void displayWeight(float weight);
 };
